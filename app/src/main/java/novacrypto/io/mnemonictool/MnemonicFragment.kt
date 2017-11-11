@@ -10,7 +10,6 @@ import android.view.ViewGroup
 import android.widget.TextView
 import io.github.novacrypto.bip39.MnemonicGenerator
 import io.github.novacrypto.bip39.wordlists.English
-import kotlinx.android.synthetic.main.fragment_mnemonic.*
 import java.security.SecureRandom
 
 
@@ -58,10 +57,15 @@ class MnemonicFragment : Fragment() {
                         .createMnemonic(
                                 SecureRandom().generateSeed(256 / 8)
                         ) { string ->
+                            if (x % 6 == 0) appendLineHeader(x / 2 + 1)
                             append(string)
                             if (++x % 6 == 0) append('\n')
                         }
             }.toString()
+
+    private fun StringBuilder.appendLineHeader(word: Int) {
+        append("$word-${word + 2}: ")
+    }
 
     // TODO: Rename method, update argument and hook method into UI event
     fun onButtonPressed(uri: Uri) {
