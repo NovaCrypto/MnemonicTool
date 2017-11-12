@@ -7,6 +7,7 @@ import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.TextView
 import io.github.novacrypto.bip39.MnemonicGenerator
 import io.github.novacrypto.bip39.wordlists.English
@@ -42,12 +43,20 @@ class MnemonicFragment : Fragment() {
         }
     }
 
+    private var textView: TextView? = null
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         // Inflate the layout for this fragment
-        val inflate = inflater.inflate(R.layout.fragment_mnemonic, container, false)
-        inflate.findViewById<TextView>(R.id.mnemonic).text = createNewMnemonic()
-        return inflate
+        val view = inflater.inflate(R.layout.fragment_mnemonic, container, false)
+        textView = view.findViewById(R.id.mnemonic)
+        refresh()
+        view.findViewById<Button>(R.id.button).setOnClickListener { refresh() }
+        return view
+    }
+
+    private fun refresh() {
+        textView?.text = createNewMnemonic()
     }
 
     private fun createNewMnemonic(): String =
@@ -55,7 +64,7 @@ class MnemonicFragment : Fragment() {
                 var x = 0
                 MnemonicGenerator(English.INSTANCE)
                         .createMnemonic(
-                                SecureRandom().generateSeed(256 / 8)
+                                SecureRandom().generateSeed(128 / 8)
                         ) { string ->
                             if (x % 6 == 0) appendLineHeader(x / 2 + 1)
                             append(string)

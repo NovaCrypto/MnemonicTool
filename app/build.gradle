@@ -13,7 +13,7 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "novacrypto.io.mnemonictool"
-        minSdkVersion 16
+        minSdkVersion 17
         targetSdkVersion 26
         versionCode 1
         versionName "1.0"
