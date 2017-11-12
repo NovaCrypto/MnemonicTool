@@ -14,8 +14,16 @@ import io.github.novacrypto.bip32.PrivateKey
 import io.github.novacrypto.bip32.networks.Bitcoin
 import io.github.novacrypto.bip39.MnemonicGenerator
 import io.github.novacrypto.bip39.SeedCalculator
+import io.github.novacrypto.bip39.Words
 import io.github.novacrypto.bip39.wordlists.English
+import io.reactivex.Flowable
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.disposables.Disposable
+import io.reactivex.rxkotlin.plusAssign
+import io.reactivex.schedulers.Schedulers
 import java.security.SecureRandom
+import java.util.*
 
 
 // TODO: Rename parameter arguments, choose names that match
@@ -56,19 +64,38 @@ class MnemonicFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_mnemonic, container, false)
         textView = view.findViewById(R.id.mnemonic)
         addresses = view.findViewById(R.id.addresses)
+
         refresh()
         view.findViewById<Button>(R.id.button).setOnClickListener { refresh() }
         return view
     }
 
+
+    private val updateAddreses = CompositeDisposable()
+
     private fun refresh() {
-        val entropy = SecureRandom().generateSeed(128 / 8)
+        val entropy = SecureRandom().generateSeed(Words.TWELVE.byteLength())
         textView?.text = createDisplayMnemonic(entropy)
-        val seed = SeedCalculator().calculateSeed(createPureMnemonic(entropy), "")
-        val root = PrivateKey.fromSeed(seed, Bitcoin.MAIN_NET)
-        val firstAddress = base58Encode(root.derive("m/44'/0'/0'/0/0").neuter().p2pkhAddress())
-        val firstChange = base58Encode(root.derive("m/44'/0'/0'/1/0").neuter().p2pkhAddress())
-        addresses?.text = "m/44'/0'/0'/0/0\n" +
+        updateAddreses.clear()
+        updateAddreses += Flowable.just(formatAddresses("calculating", "calculating")).concatWith(
+                Flowable.just(createPureMnemonic(entropy))
+                        .map { SeedCalculator().calculateSeed(it, "") }
+                        .map { PrivateKey.fromSeed(it, Bitcoin.MAIN_NET) }
+                        .map {
+                            val firstAddress = base58Encode(it.derive("m/44'/0'/0'/0/0").neuter().p2pkhAddress())
+                            val firstChange = base58Encode(it.derive("m/44'/0'/0'/1/0").neuter().p2pkhAddress())
+                            formatAddresses(firstAddress, firstChange)
+                        }
+        )
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe {
+                    addresses?.text = it
+                }
+    }
+
+    private fun formatAddresses(firstAddress: CharSequence?, firstChange: CharSequence?): String {
+        return "m/44'/0'/0'/0/0\n" +
                 "$firstAddress\n\n" +
                 "m/44'/0'/0'/1/0\n" +
                 "$firstChange"
