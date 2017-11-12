@@ -71,20 +71,21 @@ class MnemonicFragment : Fragment() {
     }
 
 
-    private val updateAddreses = CompositeDisposable()
+    private val updateAddresses = CompositeDisposable()
 
     private fun refresh() {
         val entropy = SecureRandom().generateSeed(Words.TWELVE.byteLength())
         textView?.text = createDisplayMnemonic(entropy)
-        updateAddreses.clear()
-        updateAddreses += Flowable.just(formatAddresses("calculating", "calculating")).concatWith(
+        updateAddresses.clear()
+        updateAddresses += Flowable.just(formatAddresses("calculating", "calculating", "calculating")).concatWith(
                 Flowable.just(createPureMnemonic(entropy))
                         .map { SeedCalculator().calculateSeed(it, "") }
                         .map { PrivateKey.fromSeed(it, Bitcoin.MAIN_NET) }
                         .map {
                             val firstAddress = base58Encode(it.derive("m/44'/0'/0'/0/0").neuter().p2pkhAddress())
                             val firstChange = base58Encode(it.derive("m/44'/0'/0'/1/0").neuter().p2pkhAddress())
-                            formatAddresses(firstAddress, firstChange)
+                            val firstP2SH = base58Encode(it.derive("m/49'/0'/0'/0/0").neuter().p2shAddress())
+                            formatAddresses(firstAddress, firstChange, firstP2SH)
                         }
         )
                 .subscribeOn(Schedulers.computation())
@@ -94,12 +95,15 @@ class MnemonicFragment : Fragment() {
                 }
     }
 
-    private fun formatAddresses(firstAddress: CharSequence?, firstChange: CharSequence?): String {
-        return "m/44'/0'/0'/0/0\n" +
-                "$firstAddress\n\n" +
-                "m/44'/0'/0'/1/0\n" +
-                "$firstChange"
-    }
+    private fun formatAddresses(
+            firstAddress: CharSequence?,
+            firstChange: CharSequence?,
+            firstP2SH: CharSequence?) = "m/49'/0'/0'/0/0\n" +
+                    "$firstP2SH\n\n" +
+                    "m/44'/0'/0'/0/0\n" +
+                    "$firstAddress\n\n" +
+                    "m/44'/0'/0'/1/0\n" +
+                    "$firstChange"
 
     private fun createDisplayMnemonic(entropy: ByteArray): String =
             StringBuilder().apply {
