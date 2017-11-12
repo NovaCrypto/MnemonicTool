@@ -9,7 +9,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import io.github.novacrypto.base58.Base58.base58Encode
+import io.github.novacrypto.bip32.PrivateKey
+import io.github.novacrypto.bip32.networks.Bitcoin
 import io.github.novacrypto.bip39.MnemonicGenerator
+import io.github.novacrypto.bip39.SeedCalculator
 import io.github.novacrypto.bip39.wordlists.English
 import java.security.SecureRandom
 
@@ -44,32 +48,47 @@ class MnemonicFragment : Fragment() {
     }
 
     private var textView: TextView? = null
+    private var addresses: TextView? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         // Inflate the layout for this fragment
         val view = inflater.inflate(R.layout.fragment_mnemonic, container, false)
         textView = view.findViewById(R.id.mnemonic)
+        addresses = view.findViewById(R.id.addresses)
         refresh()
         view.findViewById<Button>(R.id.button).setOnClickListener { refresh() }
         return view
     }
 
     private fun refresh() {
-        textView?.text = createNewMnemonic()
+        val entropy = SecureRandom().generateSeed(128 / 8)
+        textView?.text = createDisplayMnemonic(entropy)
+        val seed = SeedCalculator().calculateSeed(createPureMnemonic(entropy), "")
+        val root = PrivateKey.fromSeed(seed, Bitcoin.MAIN_NET)
+        val firstAddress = base58Encode(root.derive("m/44'/0'/0'/0/0").neuter().p2pkhAddress())
+        val firstChange = base58Encode(root.derive("m/44'/0'/0'/1/0").neuter().p2pkhAddress())
+        addresses?.text = "m/44'/0'/0'/0/0\n" +
+                "$firstAddress\n\n" +
+                "m/44'/0'/0'/1/0\n" +
+                "$firstChange"
     }
 
-    private fun createNewMnemonic(): String =
+    private fun createDisplayMnemonic(entropy: ByteArray): String =
             StringBuilder().apply {
                 var x = 0
                 MnemonicGenerator(English.INSTANCE)
-                        .createMnemonic(
-                                SecureRandom().generateSeed(128 / 8)
-                        ) { string ->
+                        .createMnemonic(entropy) { string ->
                             if (x % 6 == 0) appendLineHeader(x / 2 + 1)
                             append(string)
                             if (++x % 6 == 0) append('\n')
                         }
+            }.toString()
+
+    private fun createPureMnemonic(entropy: ByteArray): String =
+            StringBuilder().apply {
+                MnemonicGenerator(English.INSTANCE)
+                        .createMnemonic(entropy) { append(it) }
             }.toString()
 
     private fun StringBuilder.appendLineHeader(word: Int) {
